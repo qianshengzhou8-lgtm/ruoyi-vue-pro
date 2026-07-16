@@ -1,18 +1,19 @@
 package cn.iocoder.yudao.module.school.service;
 
+import cn.iocoder.yudao.framework.common.biz.system.oauth2.OAuth2TokenCommonApi;
+import cn.iocoder.yudao.framework.common.biz.system.oauth2.dto.OAuth2AccessTokenCreateReqDTO;
+import cn.iocoder.yudao.framework.common.biz.system.oauth2.dto.OAuth2AccessTokenRespDTO;
 import cn.iocoder.yudao.framework.common.enums.CommonStatusEnum;
+import cn.iocoder.yudao.framework.common.enums.UserTypeEnum;
 import cn.iocoder.yudao.module.school.controller.admin.vo.auth.SchoolLoginReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.auth.SchoolLoginRespVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.StaffDO;
 import cn.iocoder.yudao.module.school.dal.dataobject.StudentDO;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import cn.iocoder.yudao.module.system.enums.oauth2.OAuth2ClientConstants;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
-import java.security.SecureRandom;
-import java.util.Base64;
-import java.util.concurrent.TimeUnit;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.module.school.enums.ErrorCodeConstants.*;
@@ -27,20 +28,11 @@ public class SchoolAuthServiceImpl implements SchoolAuthService {
     @Resource
     private PasswordEncoder passwordEncoder;
     @Resource
-    private StringRedisTemplate stringRedisTemplate;
-
-    private static final String TOKEN_PREFIX = "school_token:";
-    private static final long TOKEN_EXPIRE_HOURS = 24;
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-
-    private String generateToken() {
-        byte[] tokenBytes = new byte[32];
-        SECURE_RANDOM.nextBytes(tokenBytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
-    }
+    private OAuth2TokenCommonApi oauth2TokenApi;
 
     @Override
     public SchoolLoginRespVO staffLogin(SchoolLoginReqVO reqVO) {
+        // 认证教职工身份
         StaffDO staff = staffService.getStaffByUsername(reqVO.getUsername());
         if (staff == null || !passwordEncoder.matches(reqVO.getPassword(), staff.getPassword())) {
             throw exception(STAFF_BAD_CREDENTIALS);
@@ -48,18 +40,13 @@ public class SchoolAuthServiceImpl implements SchoolAuthService {
         if (CommonStatusEnum.isDisable(staff.getStatus())) {
             throw exception(STAFF_BAD_CREDENTIALS);
         }
-        String token = generateToken();
-        stringRedisTemplate.opsForValue().set(TOKEN_PREFIX + token, "staff:" + staff.getId(), TOKEN_EXPIRE_HOURS, TimeUnit.HOURS);
-        SchoolLoginRespVO respVO = new SchoolLoginRespVO();
-        respVO.setAccessToken(token);
-        respVO.setUserId(staff.getId());
-        respVO.setUserType("staff");
-        respVO.setName(staff.getName());
-        return respVO;
+        // 创建 OAuth2 令牌（userType=ADMIN，允许访问 /admin-api/**）
+        return createTokenAfterLoginSuccess(staff.getId(), UserTypeEnum.ADMIN, "staff", staff.getName());
     }
 
     @Override
     public SchoolLoginRespVO studentLogin(SchoolLoginReqVO reqVO) {
+        // 认证学生身份
         StudentDO student = studentService.getStudentByUsername(reqVO.getUsername());
         if (student == null || !passwordEncoder.matches(reqVO.getPassword(), student.getPassword())) {
             throw exception(STUDENT_BAD_CREDENTIALS);
@@ -67,13 +54,40 @@ public class SchoolAuthServiceImpl implements SchoolAuthService {
         if (CommonStatusEnum.isDisable(student.getStatus())) {
             throw exception(STUDENT_BAD_CREDENTIALS);
         }
-        String token = generateToken();
-        stringRedisTemplate.opsForValue().set(TOKEN_PREFIX + token, "student:" + student.getId(), TOKEN_EXPIRE_HOURS, TimeUnit.HOURS);
+        // 创建 OAuth2 令牌（userType=MEMBER，仅允许访问 /app-api/**）
+        return createTokenAfterLoginSuccess(student.getId(), UserTypeEnum.MEMBER, "student", student.getName());
+    }
+
+    @Override
+    public void logout(String token) {
+        oauth2TokenApi.removeAccessToken(token);
+    }
+
+    @Override
+    public SchoolLoginRespVO refreshToken(String refreshToken) {
+        OAuth2AccessTokenRespDTO accessToken = oauth2TokenApi.refreshAccessToken(refreshToken,
+                OAuth2ClientConstants.CLIENT_ID_DEFAULT);
+        return buildRespVO(accessToken, null, null);
+    }
+
+    private SchoolLoginRespVO createTokenAfterLoginSuccess(Long userId, UserTypeEnum userType,
+                                                            String userTypeName, String name) {
+        OAuth2AccessTokenRespDTO accessToken = oauth2TokenApi.createAccessToken(
+                new OAuth2AccessTokenCreateReqDTO()
+                        .setUserId(userId)
+                        .setUserType(userType.getValue())
+                        .setClientId(OAuth2ClientConstants.CLIENT_ID_DEFAULT));
+        return buildRespVO(accessToken, userTypeName, name);
+    }
+
+    private SchoolLoginRespVO buildRespVO(OAuth2AccessTokenRespDTO token, String userType, String name) {
         SchoolLoginRespVO respVO = new SchoolLoginRespVO();
-        respVO.setAccessToken(token);
-        respVO.setUserId(student.getId());
-        respVO.setUserType("student");
-        respVO.setName(student.getName());
+        respVO.setAccessToken(token.getAccessToken());
+        respVO.setRefreshToken(token.getRefreshToken());
+        respVO.setExpiresTime(token.getExpiresTime());
+        respVO.setUserId(token.getUserId());
+        respVO.setUserType(userType);
+        respVO.setName(name);
         return respVO;
     }
 

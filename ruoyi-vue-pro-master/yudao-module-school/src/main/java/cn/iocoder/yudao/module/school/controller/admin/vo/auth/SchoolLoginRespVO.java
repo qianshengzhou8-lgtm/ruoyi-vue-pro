@@ -3,12 +3,20 @@ package cn.iocoder.yudao.module.school.controller.admin.vo.auth;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Schema(description = "学校管理后台 - 登录 Response VO")
 @Data
 public class SchoolLoginRespVO {
 
     @Schema(description = "访问令牌", example = "abc123")
     private String accessToken;
+
+    @Schema(description = "刷新令牌", example = "nice")
+    private String refreshToken;
+
+    @Schema(description = "过期时间", requiredMode = Schema.RequiredMode.REQUIRED)
+    private LocalDateTime expiresTime;
 
     @Schema(description = "用户ID", example = "1")
     private Long userId;

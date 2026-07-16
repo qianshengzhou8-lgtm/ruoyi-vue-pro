@@ -18,4 +18,19 @@ public interface SchoolAuthService {
      */
     SchoolLoginRespVO studentLogin(SchoolLoginReqVO reqVO);
 
+    /**
+     * 登出
+     *
+     * @param token 访问令牌
+     */
+    void logout(String token);
+
+    /**
+     * 刷新令牌
+     *
+     * @param refreshToken 刷新令牌
+     * @return 登录结果
+     */
+    SchoolLoginRespVO refreshToken(String refreshToken);
+
 }
