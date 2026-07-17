@@ -2,15 +2,14 @@ package cn.iocoder.yudao.module.school.service;
 
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.framework.tenant.core.context.TenantContextHolder;
+import cn.iocoder.yudao.module.member.dal.dataobject.user.MemberUserDO;
+import cn.iocoder.yudao.module.member.dal.mysql.user.MemberUserMapper;
 import cn.iocoder.yudao.module.school.controller.admin.vo.student.StudentListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.student.StudentSaveReqVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.StudentDO;
 import cn.iocoder.yudao.module.school.dal.mysql.ClassMapper;
 import cn.iocoder.yudao.module.school.dal.mysql.StaffMapper;
 import cn.iocoder.yudao.module.school.dal.mysql.StudentMapper;
-import cn.iocoder.yudao.module.system.dal.dataobject.user.AdminUserDO;
-import cn.iocoder.yudao.module.system.dal.mysql.user.AdminUserMapper;
-import cn.iocoder.yudao.module.system.service.permission.PermissionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
-import java.util.Collections;
 import java.util.List;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
@@ -36,14 +34,9 @@ public class StudentServiceImpl implements StudentService {
     @Resource
     private ClassMapper classMapper;
     @Resource
-    private AdminUserMapper adminUserMapper;
-    @Resource
-    private PermissionService permissionService;
+    private MemberUserMapper memberUserMapper;
     @Resource
     private PasswordEncoder passwordEncoder;
-
-    /** 学生默认角色：普通用户(2) */
-    private static final Long STUDENT_DEFAULT_ROLE_ID = 2L;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -59,16 +52,16 @@ public class StudentServiceImpl implements StudentService {
         String encodedPwd = passwordEncoder.encode(createReqVO.getPassword());
         student.setPassword(encodedPwd);
         studentMapper.insert(student);
-        // 同步创建 system_users 记录，使学生可登录后台（受限权限）
-        AdminUserDO adminUser = new AdminUserDO();
-        adminUser.setUsername(createReqVO.getUsername());
-        adminUser.setPassword(encodedPwd);
-        adminUser.setNickname(createReqVO.getName());
-        adminUser.setStatus(createReqVO.getStatus() != null ? createReqVO.getStatus() : 0);
-        adminUser.setTenantId(TenantContextHolder.getRequiredTenantId());
-        adminUserMapper.insert(adminUser);
-        // 分配学生角色（受限权限）
-        permissionService.assignUserRole(adminUser.getId(), Collections.singleton(STUDENT_DEFAULT_ROLE_ID));
+        // 同步创建 member_user 记录，使学生可通过 /app-api/member/auth/login 登录移动端
+        String mobile = createReqVO.getMobile() != null ? createReqVO.getMobile() : createReqVO.getUsername();
+        MemberUserDO memberUser = new MemberUserDO();
+        memberUser.setMobile(mobile);
+        memberUser.setPassword(encodedPwd);
+        memberUser.setNickname(createReqVO.getName());
+        memberUser.setName(createReqVO.getName());
+        memberUser.setStatus(createReqVO.getStatus() != null ? createReqVO.getStatus() : 0);
+        memberUser.setTenantId(TenantContextHolder.getRequiredTenantId());
+        memberUserMapper.insert(memberUser);
         return student.getId();
     }
 
@@ -88,18 +81,21 @@ public class StudentServiceImpl implements StudentService {
             updateObj.setPassword(old.getPassword());
         }
         studentMapper.updateById(updateObj);
-        // 同步更新 system_users
-        AdminUserDO adminUser = adminUserMapper.selectOne(AdminUserDO::getUsername, old.getUsername());
-        if (adminUser != null) {
-            adminUser.setUsername(updateReqVO.getUsername());
-            adminUser.setNickname(updateReqVO.getName());
-            adminUser.setStatus(updateReqVO.getStatus() != null ? updateReqVO.getStatus() : 0);
+        // 同步更新 member_user
+        String oldMobile = old.getMobile() != null ? old.getMobile() : old.getUsername();
+        MemberUserDO memberUser = memberUserMapper.selectByMobile(oldMobile);
+        if (memberUser != null) {
+            String newMobile = updateReqVO.getMobile() != null ? updateReqVO.getMobile() : updateReqVO.getUsername();
+            memberUser.setMobile(newMobile);
+            memberUser.setNickname(updateReqVO.getName());
+            memberUser.setName(updateReqVO.getName());
+            memberUser.setStatus(updateReqVO.getStatus() != null ? updateReqVO.getStatus() : 0);
             if (updateReqVO.getPassword() != null && !updateReqVO.getPassword().isEmpty()) {
-                adminUser.setPassword(passwordEncoder.encode(updateReqVO.getPassword()));
+                memberUser.setPassword(passwordEncoder.encode(updateReqVO.getPassword()));
             }
-            adminUserMapper.updateById(adminUser);
+            memberUserMapper.updateById(memberUser);
         } else {
-            log.warn("[updateStudent] 未找到对应的 system_users 记录, username={}", old.getUsername());
+            log.warn("[updateStudent] 未找到对应的 member_user 记录, mobile={}", oldMobile);
         }
     }
 
@@ -108,13 +104,14 @@ public class StudentServiceImpl implements StudentService {
     public void deleteStudent(Long id) {
         StudentDO student = studentMapper.selectById(id);
         if (student == null) { throw exception(STUDENT_NOT_EXISTS); }
-        // 先删本地学生记录，再同步删除 system_users
+        // 先删本地学生记录，再同步删除 member_user
         studentMapper.deleteById(id);
-        AdminUserDO adminUser = adminUserMapper.selectOne(AdminUserDO::getUsername, student.getUsername());
-        if (adminUser != null) {
-            adminUserMapper.deleteById(adminUser.getId());
+        String mobile = student.getMobile() != null ? student.getMobile() : student.getUsername();
+        MemberUserDO memberUser = memberUserMapper.selectByMobile(mobile);
+        if (memberUser != null) {
+            memberUserMapper.deleteById(memberUser.getId());
         } else {
-            log.warn("[deleteStudent] 未找到对应的 system_users 记录, username={}", student.getUsername());
+            log.warn("[deleteStudent] 未找到对应的 member_user 记录, mobile={}", mobile);
         }
     }
 
@@ -147,7 +144,6 @@ public class StudentServiceImpl implements StudentService {
         if (staffMapper.selectByUsername(username) != null) {
             throw exception(STUDENT_USERNAME_DUPLICATE);
         }
-        // system_users 有数据库 UNIQUE 约束兜底，此处不再预查
     }
 
 }
