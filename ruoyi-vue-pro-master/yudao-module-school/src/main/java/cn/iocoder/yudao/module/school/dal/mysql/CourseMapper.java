@@ -12,13 +12,15 @@ import java.util.List;
 public interface CourseMapper extends BaseMapperX<CourseDO> {
 
     default List<CourseDO> selectList(CourseListReqVO reqVO) {
-        return selectList(new LambdaQueryWrapperX<CourseDO>()
-                .likeIfPresent(CourseDO::getName, reqVO.getName())
-                .eqIfPresent(CourseDO::getType, reqVO.getType())
-                .eqIfPresent(CourseDO::getTeacherId, reqVO.getTeacherId())
-                .eqIfPresent(CourseDO::getCollegeId, reqVO.getCollegeId())
-                .eqIfPresent(CourseDO::getStatus, reqVO.getStatus())
-                .orderByAsc(CourseDO::getSort));
+        LambdaQueryWrapperX<CourseDO> wrapper = new LambdaQueryWrapperX<CourseDO>();
+        if (reqVO != null) {
+            wrapper.likeIfPresent(CourseDO::getName, reqVO.getName())
+                   .eqIfPresent(CourseDO::getType, reqVO.getType())
+                   .eqIfPresent(CourseDO::getTeacherId, reqVO.getTeacherId())
+                   .eqIfPresent(CourseDO::getCollegeId, reqVO.getCollegeId())
+                   .eqIfPresent(CourseDO::getStatus, reqVO.getStatus());
+        }
+        return selectList(wrapper.orderByAsc(CourseDO::getSort));
     }
 
     default Long selectCountByType(Integer type) {

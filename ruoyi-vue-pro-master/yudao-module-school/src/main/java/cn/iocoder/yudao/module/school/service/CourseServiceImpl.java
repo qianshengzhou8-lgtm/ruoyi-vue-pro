@@ -88,14 +88,10 @@ public class CourseServiceImpl implements CourseService {
         CourseStatisticsRespVO vo = new CourseStatisticsRespVO();
         List<CourseDO> allCourses = courseMapper.selectList(new CourseListReqVO());
         vo.setTotalCourses((long) allCourses.size());
-        vo.setRequiredCount(allCourses.stream().filter(c -> c.getType() == 0).count());
-        vo.setElectiveCount(allCourses.stream().filter(c -> c.getType() == 1).count());
-        // 统计选课数据
-        long totalSelections = 0;
-        for (CourseDO c : allCourses) {
-            totalSelections += selectionMapper.selectCountByCourseId(c.getId());
-        }
-        vo.setTotalSelections(totalSelections);
+        vo.setRequiredCount(allCourses.stream().filter(c -> c.getType() != null && c.getType() == 0).count());
+        vo.setElectiveCount(allCourses.stream().filter(c -> c.getType() != null && c.getType() == 1).count());
+        // 统计选课数据（单条 COUNT 查询，避免 N+1 问题）
+        vo.setTotalSelections(selectionMapper.selectAllCount());
         vo.setTotalStudents(selectionMapper.selectDistinctStudentCount());
         return vo;
     }

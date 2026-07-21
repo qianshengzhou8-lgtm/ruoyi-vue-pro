@@ -5,10 +5,11 @@ import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.module.school.controller.admin.vo.student.StudentListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.student.StudentRespVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.student.StudentSaveReqVO;
-import cn.iocoder.yudao.module.school.dal.dataobject.StaffDO;
 import cn.iocoder.yudao.module.school.dal.dataobject.StudentDO;
 import cn.iocoder.yudao.module.school.dal.mysql.StaffMapper;
 import cn.iocoder.yudao.module.school.service.StudentService;
+import cn.iocoder.yudao.module.system.dal.dataobject.user.AdminUserDO;
+import cn.iocoder.yudao.module.system.dal.mysql.user.AdminUserMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,6 +35,8 @@ public class StudentController {
     private StudentService studentService;
     @Resource
     private StaffMapper staffMapper;
+    @Resource
+    private AdminUserMapper adminUserMapper;
 
     @PostMapping("/create")
     @Operation(summary = "创建学生")
@@ -72,7 +75,9 @@ public class StudentController {
     @PreAuthorize("@ss.hasPermission('school:student:query')")
     public CommonResult<List<StudentRespVO>> getStudentList(@Valid StudentListReqVO reqVO) {
         // 根据登录教职工角色做数据权限过滤
-        StaffDO staff = staffMapper.selectById(getLoginUserId());
+        // getLoginUserId() 返回 system_users 的 id，需通过 username 关联查到 school_staff
+        AdminUserDO adminUser = adminUserMapper.selectById(getLoginUserId());
+        StaffDO staff = adminUser != null ? staffMapper.selectByUsername(adminUser.getUsername()) : null;
         int role = staff != null && staff.getRole() != null ? staff.getRole() : 0;
         List<StudentDO> list;
         switch (role) {

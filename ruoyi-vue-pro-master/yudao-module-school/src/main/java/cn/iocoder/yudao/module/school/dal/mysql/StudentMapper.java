@@ -31,4 +31,8 @@ public interface StudentMapper extends BaseMapperX<StudentDO> {
         return selectOne(StudentDO::getUsername, username);
     }
 
+    default StudentDO selectByMobile(String mobile) {
+        return selectOne(StudentDO::getMobile, mobile);
+    }
+
 }

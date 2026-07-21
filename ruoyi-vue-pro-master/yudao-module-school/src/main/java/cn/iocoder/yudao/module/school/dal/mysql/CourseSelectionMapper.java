@@ -4,6 +4,7 @@ import cn.iocoder.yudao.framework.mybatis.core.mapper.BaseMapperX;
 import cn.iocoder.yudao.framework.mybatis.core.query.LambdaQueryWrapperX;
 import cn.iocoder.yudao.module.school.dal.dataobject.CourseSelectionDO;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 
 @Mapper
 public interface CourseSelectionMapper extends BaseMapperX<CourseSelectionDO> {
@@ -18,8 +19,11 @@ public interface CourseSelectionMapper extends BaseMapperX<CourseSelectionDO> {
                 .eq(CourseSelectionDO::getStudentId, studentId));
     }
 
-    default Long selectDistinctStudentCount() {
-        return selectCount(new LambdaQueryWrapperX<CourseSelectionDO>().groupBy(CourseSelectionDO::getStudentId));
+    @Select("SELECT COUNT(DISTINCT student_id) FROM school_course_selection")
+    Long selectDistinctStudentCount();
+
+    default Long selectAllCount() {
+        return selectCount(null);
     }
 
 }
