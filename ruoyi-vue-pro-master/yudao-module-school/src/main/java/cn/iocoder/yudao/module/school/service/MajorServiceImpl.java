@@ -1,6 +1,8 @@
 package cn.iocoder.yudao.module.school.service;
 
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
+import cn.iocoder.yudao.module.school.controller.admin.vo.ImportRespVO;
+import cn.iocoder.yudao.module.school.controller.admin.vo.major.MajorImportExcelVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.major.MajorListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.major.MajorSaveReqVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.ClassDO;
@@ -67,6 +69,22 @@ public class MajorServiceImpl implements MajorService {
     @Override
     public List<MajorDO> getMajorList(MajorListReqVO reqVO) {
         return majorMapper.selectList(reqVO);
+    }
+
+    @Override
+    public ImportRespVO importMajorList(List<MajorImportExcelVO> list) {
+        ImportRespVO result = new ImportRespVO();
+        for (MajorImportExcelVO vo : list) {
+            try {
+                MajorSaveReqVO saveVO = BeanUtils.toBean(vo, MajorSaveReqVO.class);
+                createMajor(saveVO);
+                result.setCreateCount(result.getCreateCount() + 1);
+            } catch (Exception e) {
+                result.setFailureCount(result.getFailureCount() + 1);
+                result.getFailureReasons().add(vo.getName() + ": " + e.getMessage());
+            }
+        }
+        return result;
     }
 
     private void validateMajorExists(Long id) {

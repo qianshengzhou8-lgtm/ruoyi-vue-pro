@@ -31,6 +31,12 @@ public class StaffSaveReqVO {
     @NotNull(message = "所属学院不能为空")
     private Long collegeId;
 
+    @Schema(description = "角色(0:教师,1:班主任,2:学院院长,3:校长)", example = "0")
+    private Integer role;
+
+    @Schema(description = "负责班级ID（班主任角色时使用）", example = "1")
+    private Long classId;
+
     @Schema(description = "状态(0:开启,1:禁用)", example = "0")
     private Integer status;
 

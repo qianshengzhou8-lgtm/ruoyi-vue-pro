@@ -19,6 +19,14 @@ public interface StudentMapper extends BaseMapperX<StudentDO> {
                 .orderByDesc(StudentDO::getCreateTime));
     }
 
+    default List<StudentDO> selectListByCollegeId(StudentListReqVO reqVO, Long collegeId) {
+        return selectList(new LambdaQueryWrapperX<StudentDO>()
+                .likeIfPresent(StudentDO::getName, reqVO.getName())
+                .eqIfPresent(StudentDO::getStatus, reqVO.getStatus())
+                .inSql(StudentDO::getClassId, "SELECT id FROM school_class WHERE major_id IN (SELECT id FROM school_major WHERE college_id = " + collegeId + ")")
+                .orderByDesc(StudentDO::getCreateTime));
+    }
+
     default StudentDO selectByUsername(String username) {
         return selectOne(StudentDO::getUsername, username);
     }

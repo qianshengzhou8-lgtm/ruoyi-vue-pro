@@ -1,5 +1,7 @@
 package cn.iocoder.yudao.module.school.service;
 
+import cn.iocoder.yudao.module.school.controller.admin.vo.ImportRespVO;
+import cn.iocoder.yudao.module.school.controller.admin.vo.major.MajorImportExcelVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.major.MajorListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.major.MajorSaveReqVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.MajorDO;
@@ -17,5 +19,7 @@ public interface MajorService {
     MajorDO getMajor(Long id);
 
     List<MajorDO> getMajorList(MajorListReqVO reqVO);
+
+    ImportRespVO importMajorList(List<MajorImportExcelVO> list);
 
 }

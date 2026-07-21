@@ -5,7 +5,9 @@ import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.module.school.controller.admin.vo.student.StudentListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.student.StudentRespVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.student.StudentSaveReqVO;
+import cn.iocoder.yudao.module.school.dal.dataobject.StaffDO;
 import cn.iocoder.yudao.module.school.dal.dataobject.StudentDO;
+import cn.iocoder.yudao.module.school.dal.mysql.StaffMapper;
 import cn.iocoder.yudao.module.school.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,6 +21,7 @@ import java.util.List;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
+import static cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils.getLoginUserId;
 import static cn.iocoder.yudao.module.school.enums.ErrorCodeConstants.STUDENT_NOT_EXISTS;
 
 @Tag(name = "管理后台 - 学生管理")
@@ -29,6 +32,8 @@ public class StudentController {
 
     @Resource
     private StudentService studentService;
+    @Resource
+    private StaffMapper staffMapper;
 
     @PostMapping("/create")
     @Operation(summary = "创建学生")
@@ -66,7 +71,25 @@ public class StudentController {
     @Operation(summary = "获得学生列表")
     @PreAuthorize("@ss.hasPermission('school:student:query')")
     public CommonResult<List<StudentRespVO>> getStudentList(@Valid StudentListReqVO reqVO) {
-        List<StudentDO> list = studentService.getStudentList(reqVO);
+        // 根据登录教职工角色做数据权限过滤
+        StaffDO staff = staffMapper.selectById(getLoginUserId());
+        int role = staff != null && staff.getRole() != null ? staff.getRole() : 0;
+        List<StudentDO> list;
+        switch (role) {
+            case 3: // 校长 → 全校数据
+                list = studentService.getStudentList(reqVO);
+                break;
+            case 2: // 学院院长 → 本学院数据
+                list = studentService.getStudentListByCollegeId(reqVO, staff.getCollegeId());
+                break;
+            case 1: // 班主任 → 本班数据
+                reqVO.setClassId(staff.getClassId());
+                list = studentService.getStudentList(reqVO);
+                break;
+            default: // 教师 → 无限制（或后续收紧）
+                list = studentService.getStudentList(reqVO);
+                break;
+        }
         return success(BeanUtils.toBean(list, StudentRespVO.class));
     }
 

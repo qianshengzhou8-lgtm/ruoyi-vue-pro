@@ -18,6 +18,8 @@ public interface StudentService {
 
     List<StudentDO> getStudentList(StudentListReqVO reqVO);
 
+    List<StudentDO> getStudentListByCollegeId(StudentListReqVO reqVO, Long collegeId);
+
     StudentDO getStudentByUsername(String username);
 
 }

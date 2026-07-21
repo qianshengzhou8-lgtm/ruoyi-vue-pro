@@ -2,6 +2,9 @@ package cn.iocoder.yudao.module.school.controller.admin;
 
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
+import cn.iocoder.yudao.framework.excel.core.util.ExcelUtils;
+import cn.iocoder.yudao.module.school.controller.admin.vo.ImportRespVO;
+import cn.iocoder.yudao.module.school.controller.admin.vo.college.CollegeImportExcelVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.college.CollegeListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.college.CollegeRespVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.college.CollegeSaveReqVO;
@@ -13,9 +16,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import javax.annotation.security.PermitAll;
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
+import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
@@ -76,6 +84,33 @@ public class CollegeController {
     public CommonResult<List<CollegeRespVO>> getSimpleCollegeList() {
         List<CollegeDO> list = collegeService.getCollegeListByStatus(CommonStatusEnum.ENABLE.getStatus());
         return success(BeanUtils.toBean(list, CollegeRespVO.class));
+    }
+
+    // ========== 导入导出 ==========
+
+    @GetMapping("/export-excel")
+    @Operation(summary = "导出学院 Excel")
+    @PreAuthorize("@ss.hasPermission('school:college:export')")
+    public void exportCollegeList(@Valid CollegeListReqVO reqVO, HttpServletResponse response) throws IOException {
+        List<CollegeDO> list = collegeService.getCollegeList(reqVO);
+        ExcelUtils.write(response, "学院数据.xls", "数据", CollegeRespVO.class, BeanUtils.toBean(list, CollegeRespVO.class));
+    }
+
+    @GetMapping("/get-import-template")
+    @Operation(summary = "获得学院导入模板")
+    @PermitAll
+    public void importTemplate(HttpServletResponse response) throws IOException {
+        ExcelUtils.write(response, "学院导入模板.xls", "数据", CollegeImportExcelVO.class,
+                Collections.singletonList(CollegeImportExcelVO.builder().build()));
+    }
+
+    @PostMapping("/import")
+    @Operation(summary = "导入学院")
+    @PreAuthorize("@ss.hasPermission('school:college:import')")
+    public CommonResult<ImportRespVO> importCollegeList(@RequestParam("file") MultipartFile file) throws IOException {
+        List<CollegeImportExcelVO> list = ExcelUtils.read(file, CollegeImportExcelVO.class);
+        ImportRespVO result = collegeService.importCollegeList(list);
+        return success(result);
     }
 
 }

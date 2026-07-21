@@ -33,4 +33,10 @@ public interface ErrorCodeConstants {
     ErrorCode STUDENT_PASSWORD_BLANK = new ErrorCode(1_008_005_002, "学生密码不能为空");
     ErrorCode STUDENT_BAD_CREDENTIALS = new ErrorCode(1_008_005_003, "账号或密码错误");
 
+    // ========== 课程模块 1-008-006-000 ==========
+    ErrorCode COURSE_NOT_EXISTS = new ErrorCode(1_008_006_000, "课程不存在");
+    ErrorCode COURSE_ALREADY_SELECTED = new ErrorCode(1_008_006_001, "已选过该课程");
+    ErrorCode COURSE_CAPACITY_FULL = new ErrorCode(1_008_006_002, "课程已满");
+    ErrorCode COURSE_NOT_SELECTED = new ErrorCode(1_008_006_003, "未选择该课程");
+
 }

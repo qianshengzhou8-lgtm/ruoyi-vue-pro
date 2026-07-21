@@ -6,36 +6,30 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 /**
- * 教职工表
- *
- * @author school
+ * 课程表
  */
-@TableName("school_staff")
-@KeySequence("school_staff_seq")
+@TableName("school_course")
+@KeySequence("school_course_seq")
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class StaffDO extends TenantBaseDO {
+public class CourseDO extends TenantBaseDO {
 
     @TableId
     private Long id;
-    /** 姓名 */
+    /** 课程名称 */
     private String name;
-    /** 登录账号 */
-    private String username;
-    /** 登录密码 */
-    @ToString.Exclude
-    private String password;
-    /** 手机号 */
-    private String mobile;
+    /** 类型(0:必修课,1:选修课) */
+    private Integer type;
+    /** 选修课人数上限(null=不限) */
+    private Integer capacity;
+    /** 授课教师ID */
+    private Long teacherId;
     /** 所属学院ID */
     private Long collegeId;
-    /** 角色(0:教师,1:班主任,2:学院院长,3:校长) */
-    private Integer role;
-    /** 负责班级ID（班主任角色时使用） */
-    private Long classId;
+    /** 排序 */
+    private Integer sort;
     /** 状态(0:开启,1:禁用) */
     private Integer status;
 

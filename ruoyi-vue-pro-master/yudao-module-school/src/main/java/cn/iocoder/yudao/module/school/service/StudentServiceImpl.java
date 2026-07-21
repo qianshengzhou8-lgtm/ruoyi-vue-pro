@@ -126,6 +126,11 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    public List<StudentDO> getStudentListByCollegeId(StudentListReqVO reqVO, Long collegeId) {
+        return studentMapper.selectListByCollegeId(reqVO, collegeId);
+    }
+
+    @Override
     public StudentDO getStudentByUsername(String username) {
         return studentMapper.selectByUsername(username);
     }

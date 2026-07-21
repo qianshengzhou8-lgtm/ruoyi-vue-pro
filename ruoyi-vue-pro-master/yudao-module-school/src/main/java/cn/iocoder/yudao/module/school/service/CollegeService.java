@@ -1,5 +1,7 @@
 package cn.iocoder.yudao.module.school.service;
 
+import cn.iocoder.yudao.module.school.controller.admin.vo.ImportRespVO;
+import cn.iocoder.yudao.module.school.controller.admin.vo.college.CollegeImportExcelVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.college.CollegeListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.college.CollegeSaveReqVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.CollegeDO;
@@ -19,5 +21,7 @@ public interface CollegeService {
     List<CollegeDO> getCollegeList(CollegeListReqVO reqVO);
 
     List<CollegeDO> getCollegeListByStatus(Integer status);
+
+    ImportRespVO importCollegeList(List<CollegeImportExcelVO> list);
 
 }
