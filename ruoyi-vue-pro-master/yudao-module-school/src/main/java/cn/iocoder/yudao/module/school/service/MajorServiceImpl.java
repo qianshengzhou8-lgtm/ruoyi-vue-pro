@@ -72,6 +72,11 @@ public class MajorServiceImpl implements MajorService {
     }
 
     @Override
+    public List<MajorDO> getMajorListByCollegeId(Long collegeId) {
+        return majorMapper.selectListByCollegeId(collegeId);
+    }
+
+    @Override
     public ImportRespVO importMajorList(List<MajorImportExcelVO> list) {
         ImportRespVO result = new ImportRespVO();
         for (MajorImportExcelVO vo : list) {

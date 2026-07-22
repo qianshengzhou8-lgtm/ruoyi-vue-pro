@@ -3,6 +3,9 @@
 -- 运行前请确保 school.sql 中的表已创建
 -- ============================================
 
+-- 确保使用 UTF-8 编码连接，避免中文乱码
+SET NAMES utf8mb4;
+
 -- 1. 学校管理（顶级目录）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`)
 VALUES (5000, '学校管理', '', 1, 30, 0, '/school', 'ep:school', NULL, NULL, 0);
@@ -19,6 +22,10 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 VALUES (50012, '学院更新', 'school:college:update', 3, 3, 5001, '', '', '', 0);
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
 VALUES (50013, '学院删除', 'school:college:delete', 3, 4, 5001, '', '', '', 0);
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
+VALUES (50014, '学院导出', 'school:college:export', 3, 5, 5001, '', '', '', 0);
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
+VALUES (50015, '学院导入', 'school:college:import', 3, 6, 5001, '', '', '', 0);
 
 -- 3. 专业管理（菜单页）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`)
@@ -31,6 +38,10 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 VALUES (50022, '专业更新', 'school:major:update', 3, 3, 5002, '', '', '', 0);
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
 VALUES (50023, '专业删除', 'school:major:delete', 3, 4, 5002, '', '', '', 0);
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
+VALUES (50024, '专业导出', 'school:major:export', 3, 5, 5002, '', '', '', 0);
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
+VALUES (50025, '专业导入', 'school:major:import', 3, 6, 5002, '', '', '', 0);
 
 -- 4. 班级管理（菜单页）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`)
@@ -43,6 +54,10 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 VALUES (50032, '班级更新', 'school:class:update', 3, 3, 5003, '', '', '', 0);
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
 VALUES (50033, '班级删除', 'school:class:delete', 3, 4, 5003, '', '', '', 0);
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
+VALUES (50034, '班级导出', 'school:class:export', 3, 5, 5003, '', '', '', 0);
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
+VALUES (50035, '班级导入', 'school:class:import', 3, 6, 5003, '', '', '', 0);
 
 -- 5. 教职工管理（菜单页）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`)
@@ -55,6 +70,10 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 VALUES (50042, '教职工更新', 'school:staff:update', 3, 3, 5004, '', '', '', 0);
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
 VALUES (50043, '教职工删除', 'school:staff:delete', 3, 4, 5004, '', '', '', 0);
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
+VALUES (50044, '教职工导出', 'school:staff:export', 3, 5, 5004, '', '', '', 0);
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
+VALUES (50045, '教职工导入', 'school:staff:import', 3, 6, 5004, '', '', '', 0);
 
 -- 6. 学生管理（菜单页）
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`)
@@ -67,7 +86,11 @@ INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_i
 VALUES (50052, '学生更新', 'school:student:update', 3, 3, 5005, '', '', '', 0);
 INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
 VALUES (50053, '学生删除', 'school:student:delete', 3, 4, 5005, '', '', '', 0);
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
+VALUES (50054, '学生导出', 'school:student:export', 3, 5, 5005, '', '', '', 0);
+INSERT INTO `system_menu` (`id`, `name`, `permission`, `type`, `sort`, `parent_id`, `path`, `component`, `component_name`, `status`)
+VALUES (50055, '学生导入', 'school:student:import', 3, 6, 5005, '', '', '', 0);
 
 -- 7. 给超级管理员(角色ID=1)分配学校管理所有菜单权限
 INSERT INTO `system_role_menu` (`role_id`, `menu_id`)
-SELECT 1, id FROM `system_menu` WHERE id BETWEEN 5000 AND 50053;
+SELECT 1, id FROM `system_menu` WHERE id BETWEEN 5000 AND 50063;

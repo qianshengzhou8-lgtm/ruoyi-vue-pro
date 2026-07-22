@@ -2,6 +2,9 @@
 -- 学校管理模块 - 修复脚本 (已有表的增量修复)
 -- ============================================
 
+-- 确保使用 UTF-8 编码连接，避免中文乱码
+SET NAMES utf8mb4;
+
 -- 1. 添加 tenant_id 列 (如果还未添加)
 ALTER TABLE school_college ADD COLUMN IF NOT EXISTS tenant_id bigint NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER deleted;
 ALTER TABLE school_major   ADD COLUMN IF NOT EXISTS tenant_id bigint NOT NULL DEFAULT 1 COMMENT '租户ID' AFTER deleted;

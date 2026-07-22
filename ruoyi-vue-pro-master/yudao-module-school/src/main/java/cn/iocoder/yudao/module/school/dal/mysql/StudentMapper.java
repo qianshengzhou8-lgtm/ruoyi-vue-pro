@@ -11,28 +11,19 @@ import java.util.List;
 @Mapper
 public interface StudentMapper extends BaseMapperX<StudentDO> {
 
-    default List<StudentDO> selectList(StudentListReqVO reqVO) {
-        return selectList(new LambdaQueryWrapperX<StudentDO>()
-                .likeIfPresent(StudentDO::getName, reqVO.getName())
-                .eqIfPresent(StudentDO::getClassId, reqVO.getClassId())
-                .eqIfPresent(StudentDO::getStatus, reqVO.getStatus())
-                .orderByDesc(StudentDO::getCreateTime));
-    }
-
-    default List<StudentDO> selectListByCollegeId(StudentListReqVO reqVO, Long collegeId) {
-        return selectList(new LambdaQueryWrapperX<StudentDO>()
-                .likeIfPresent(StudentDO::getName, reqVO.getName())
-                .eqIfPresent(StudentDO::getStatus, reqVO.getStatus())
-                .inSql(StudentDO::getClassId, "SELECT id FROM school_class WHERE major_id IN (SELECT id FROM school_major WHERE college_id = " + collegeId + ")")
-                .orderByDesc(StudentDO::getCreateTime));
-    }
-
+    
     default StudentDO selectByUsername(String username) {
         return selectOne(StudentDO::getUsername, username);
     }
 
     default StudentDO selectByMobile(String mobile) {
         return selectOne(StudentDO::getMobile, mobile);
+    }
+
+    default boolean hasStudentInCollege(Long studentId, Long collegeId) {
+        return selectCount(new LambdaQueryWrapperX<StudentDO>()
+                .eq(StudentDO::getId, studentId)
+                .apply("class_id IN (SELECT c.id FROM school_class c INNER JOIN school_major m ON c.major_id = m.id WHERE m.college_id = {0})", collegeId)) > 0;
     }
 
 }

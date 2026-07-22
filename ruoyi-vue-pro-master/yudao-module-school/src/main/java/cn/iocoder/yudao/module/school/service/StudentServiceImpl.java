@@ -1,15 +1,22 @@
 package cn.iocoder.yudao.module.school.service;
 
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
+import cn.iocoder.yudao.framework.common.pojo.PageParam;
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.framework.mybatis.core.query.LambdaQueryWrapperX;
 import cn.iocoder.yudao.framework.tenant.core.context.TenantContextHolder;
 import cn.iocoder.yudao.module.member.dal.dataobject.user.MemberUserDO;
 import cn.iocoder.yudao.module.member.dal.mysql.user.MemberUserMapper;
+import cn.iocoder.yudao.module.school.controller.admin.vo.ImportRespVO;
+import cn.iocoder.yudao.module.school.controller.admin.vo.student.StudentImportExcelVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.student.StudentListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.student.StudentSaveReqVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.StudentDO;
+import cn.iocoder.yudao.module.school.dal.dataobject.ClassDO;
 import cn.iocoder.yudao.module.school.dal.mysql.ClassMapper;
 import cn.iocoder.yudao.module.school.dal.mysql.StaffMapper;
 import cn.iocoder.yudao.module.school.dal.mysql.StudentMapper;
+import cn.iocoder.yudao.module.school.util.SchoolDataPermissionUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -37,6 +44,8 @@ public class StudentServiceImpl implements StudentService {
     private MemberUserMapper memberUserMapper;
     @Resource
     private PasswordEncoder passwordEncoder;
+    @Resource
+    private SchoolDataPermissionUtil dataPermissionUtil;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -69,6 +78,10 @@ public class StudentServiceImpl implements StudentService {
     @Transactional(rollbackFor = Exception.class)
     public void updateStudent(StudentSaveReqVO updateReqVO) {
         validateStudentExists(updateReqVO.getId());
+        // 数据权限检查
+        if (!dataPermissionUtil.hasAccessToStudent(updateReqVO.getId())) {
+            throw exception(DATA_PERMISSION_DENIED);
+        }
         StudentDO old = studentMapper.selectById(updateReqVO.getId());
         validateUsernameUnique(updateReqVO.getUsername(), updateReqVO.getId());
         if (classMapper.selectById(updateReqVO.getClassId()) == null) {
@@ -102,8 +115,12 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteStudent(Long id) {
+        validateStudentExists(id);
+        // 数据权限检查
+        if (!dataPermissionUtil.hasAccessToStudent(id)) {
+            throw exception(DATA_PERMISSION_DENIED);
+        }
         StudentDO student = studentMapper.selectById(id);
-        if (student == null) { throw exception(STUDENT_NOT_EXISTS); }
         // 先删本地学生记录，再同步删除 member_user
         studentMapper.deleteById(id);
         String mobile = student.getMobile() != null ? student.getMobile() : student.getUsername();
@@ -122,17 +139,80 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public List<StudentDO> getStudentList(StudentListReqVO reqVO) {
-        return studentMapper.selectList(reqVO);
+        LambdaQueryWrapperX<StudentDO> wrapper = new LambdaQueryWrapperX<StudentDO>()
+                .likeIfPresent(StudentDO::getName, reqVO.getName())
+                .eqIfPresent(StudentDO::getClassId, reqVO.getClassId())
+                .eqIfPresent(StudentDO::getStatus, reqVO.getStatus());
+        wrapper.orderByDesc(StudentDO::getCreateTime);
+        return studentMapper.selectList(wrapper);
     }
 
     @Override
     public List<StudentDO> getStudentListByCollegeId(StudentListReqVO reqVO, Long collegeId) {
-        return studentMapper.selectListByCollegeId(reqVO, collegeId);
+        LambdaQueryWrapperX<StudentDO> wrapper = new LambdaQueryWrapperX<StudentDO>()
+                .likeIfPresent(StudentDO::getName, reqVO.getName())
+                .eqIfPresent(StudentDO::getStatus, reqVO.getStatus());
+        // collegeId 为内部 Long 类型，非用户输入，安全
+        wrapper.apply("class_id IN (SELECT c.id FROM school_class c INNER JOIN school_major m ON c.major_id = m.id WHERE m.college_id = {0})", collegeId);
+        wrapper.orderByDesc(StudentDO::getCreateTime);
+        return studentMapper.selectList(wrapper);
+    }
+
+    @Override
+    public PageResult<StudentDO> getStudentPage(StudentListReqVO reqVO) {
+        PageParam pageParam = new PageParam();
+        pageParam.setPageNo(reqVO.getPageNo());
+        pageParam.setPageSize(reqVO.getPageSize());
+        LambdaQueryWrapperX<StudentDO> wrapper = new LambdaQueryWrapperX<StudentDO>()
+                .likeIfPresent(StudentDO::getName, reqVO.getName())
+                .eqIfPresent(StudentDO::getClassId, reqVO.getClassId())
+                .eqIfPresent(StudentDO::getStatus, reqVO.getStatus())
+                .orderByDesc(StudentDO::getCreateTime);
+        return studentMapper.selectPage(pageParam, wrapper);
+    }
+
+    @Override
+    public PageResult<StudentDO> getStudentPageByCollegeId(StudentListReqVO reqVO, Long collegeId) {
+        PageParam pageParam = new PageParam();
+        pageParam.setPageNo(reqVO.getPageNo());
+        pageParam.setPageSize(reqVO.getPageSize());
+        LambdaQueryWrapperX<StudentDO> wrapper = new LambdaQueryWrapperX<StudentDO>()
+                .likeIfPresent(StudentDO::getName, reqVO.getName())
+                .eqIfPresent(StudentDO::getStatus, reqVO.getStatus());
+        // collegeId 为内部 Long 类型，非用户输入，安全
+        wrapper.apply("class_id IN (SELECT c.id FROM school_class c INNER JOIN school_major m ON c.major_id = m.id WHERE m.college_id = {0})", collegeId);
+        wrapper.orderByDesc(StudentDO::getCreateTime);
+        return studentMapper.selectPage(pageParam, wrapper);
     }
 
     @Override
     public StudentDO getStudentByUsername(String username) {
         return studentMapper.selectByUsername(username);
+    }
+
+    @Override
+    public boolean hasStudentInCollege(Long studentId, Long collegeId) {
+        StudentDO student = studentMapper.selectById(studentId);
+        if (student == null) {
+            return false;
+        }
+        return studentMapper.hasStudentInCollege(studentId, collegeId);
+    }
+
+    @Override
+    public ImportRespVO importStudentList(List<StudentImportExcelVO> list) {
+        ImportRespVO result = new ImportRespVO();
+        for (StudentImportExcelVO vo : list) {
+            try {
+                StudentSaveReqVO saveVO = BeanUtils.toBean(vo, StudentSaveReqVO.class);
+                createStudent(saveVO);
+                result.setCreateCount(result.getCreateCount() + 1);
+            } catch (Exception e) {
+                result.setFailureCount(result.getFailureCount() + 1);
+                result.getFailureReasons().add(vo.getName() + ": " + e.getMessage());
+            }
+        }
+        return result;
     }
 
     private void validateStudentExists(Long id) {
@@ -142,11 +222,18 @@ public class StudentServiceImpl implements StudentService {
     }
 
     private void validateUsernameUnique(String username, Long id) {
+        // 检查学生表
         StudentDO existingStudent = studentMapper.selectByUsername(username);
         if (existingStudent != null && !existingStudent.getId().equals(id)) {
             throw exception(STUDENT_USERNAME_DUPLICATE);
         }
+        // 检查教职工表
         if (staffMapper.selectByUsername(username) != null) {
+            throw exception(STUDENT_USERNAME_DUPLICATE);
+        }
+        // 检查会员表（通过mobile检查，因为student的username通常作为mobile）
+        MemberUserDO existingMember = memberUserMapper.selectByMobile(username);
+        if (existingMember != null && !existingMember.getId().equals(id)) {
             throw exception(STUDENT_USERNAME_DUPLICATE);
         }
     }

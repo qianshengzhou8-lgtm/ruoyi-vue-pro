@@ -1,6 +1,9 @@
 -- ============================================
 -- 学校模块 - 课程管理
 -- ============================================
+
+-- 确保使用 UTF-8 编码连接，避免中文乱码
+SET NAMES utf8mb4;
 CREATE TABLE IF NOT EXISTS school_course (
     id          bigint        NOT NULL AUTO_INCREMENT COMMENT '课程ID',
     name        varchar(100)  NOT NULL              COMMENT '课程名称',

@@ -1,6 +1,8 @@
 package cn.iocoder.yudao.module.school.service;
 
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
+import cn.iocoder.yudao.module.school.controller.admin.vo.ImportRespVO;
+import cn.iocoder.yudao.module.school.controller.admin.vo.class_.ClassImportExcelVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.class_.ClassListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.class_.ClassSaveReqVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.ClassDO;
@@ -67,6 +69,27 @@ public class ClassServiceImpl implements ClassService {
     @Override
     public List<ClassDO> getClassList(ClassListReqVO reqVO) {
         return classMapper.selectList(reqVO);
+    }
+
+    @Override
+    public List<ClassDO> getClassListByMajorId(Long majorId) {
+        return classMapper.selectListByMajorId(majorId);
+    }
+
+    @Override
+    public ImportRespVO importClassList(List<ClassImportExcelVO> list) {
+        ImportRespVO result = new ImportRespVO();
+        for (ClassImportExcelVO vo : list) {
+            try {
+                ClassSaveReqVO saveVO = BeanUtils.toBean(vo, ClassSaveReqVO.class);
+                createClass(saveVO);
+                result.setCreateCount(result.getCreateCount() + 1);
+            } catch (Exception e) {
+                result.setFailureCount(result.getFailureCount() + 1);
+                result.getFailureReasons().add(vo.getName() + ": " + e.getMessage());
+            }
+        }
+        return result;
     }
 
     private void validateClassExists(Long id) {

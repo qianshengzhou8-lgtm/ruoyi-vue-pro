@@ -39,4 +39,7 @@ public interface ErrorCodeConstants {
     ErrorCode COURSE_CAPACITY_FULL = new ErrorCode(1_008_006_002, "课程已满");
     ErrorCode COURSE_NOT_SELECTED = new ErrorCode(1_008_006_003, "未选择该课程");
 
+    // ========== 数据权限模块 1-008-007-000 ==========
+    ErrorCode DATA_PERMISSION_DENIED = new ErrorCode(1_008_007_000, "无权访问该数据");
+
 }

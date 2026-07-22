@@ -1,5 +1,7 @@
 package cn.iocoder.yudao.module.school.service;
 
+import cn.iocoder.yudao.module.school.controller.admin.vo.ImportRespVO;
+import cn.iocoder.yudao.module.school.controller.admin.vo.staff.StaffImportExcelVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.staff.StaffListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.staff.StaffSaveReqVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.StaffDO;
@@ -19,5 +21,10 @@ public interface StaffService {
     List<StaffDO> getStaffList(StaffListReqVO reqVO);
 
     StaffDO getStaffByUsername(String username);
+
+    /**
+     * 导入教职工列表
+     */
+    ImportRespVO importStaffList(List<StaffImportExcelVO> list);
 
 }

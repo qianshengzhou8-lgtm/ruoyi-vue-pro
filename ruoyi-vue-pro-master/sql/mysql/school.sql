@@ -2,6 +2,9 @@
 -- 学校用户管理模块 - 初始化表结构
 -- ============================================
 
+-- 确保使用 UTF-8 编码连接，避免中文乱码
+SET NAMES utf8mb4;
+
 -- 1. 学院表
 CREATE TABLE IF NOT EXISTS school_college (
     id          bigint        NOT NULL AUTO_INCREMENT COMMENT '学院ID',

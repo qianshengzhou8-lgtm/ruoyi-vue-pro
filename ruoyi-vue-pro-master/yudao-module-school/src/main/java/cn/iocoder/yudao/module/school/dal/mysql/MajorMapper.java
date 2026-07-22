@@ -19,4 +19,15 @@ public interface MajorMapper extends BaseMapperX<MajorDO> {
                 .orderByAsc(MajorDO::getSort));
     }
 
+    /**
+     * 根据学院ID获取专业列表
+     * @param collegeId 学院ID
+     * @return 专业列表
+     */
+    default List<MajorDO> selectListByCollegeId(Long collegeId) {
+        return selectList(new LambdaQueryWrapperX<MajorDO>()
+                .eq(MajorDO::getCollegeId, collegeId)
+                .orderByAsc(MajorDO::getSort));
+    }
+
 }

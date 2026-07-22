@@ -1,11 +1,14 @@
 package cn.iocoder.yudao.module.school.controller.admin.vo.course;
 
+import cn.iocoder.yudao.module.school.controller.admin.vo.common.PageReqVO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Schema(description = "管理后台 - 课程列表 Request VO")
 @Data
-public class CourseListReqVO {
+@EqualsAndHashCode(callSuper = true)
+public class CourseListReqVO extends PageReqVO {
 
     @Schema(description = "课程名称，模糊匹配", example = "数学")
     private String name;

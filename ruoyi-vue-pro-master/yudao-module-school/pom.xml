@@ -64,6 +64,20 @@
             <artifactId>yudao-spring-boot-starter-excel</artifactId>
         </dependency>
 
+        <!-- Excel 导入导出 -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>easyexcel</artifactId>
+            <version>3.3.2</version>
+        </dependency>
+
+        <!-- PageHelper 分页插件 -->
+        <dependency>
+            <groupId>com.github.pagehelper</groupId>
+            <artifactId>pagehelper-spring-boot-starter</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+
         <!-- Test 测试相关 -->
         <dependency>
             <groupId>cn.iocoder.boot</groupId>

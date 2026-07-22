@@ -19,4 +19,15 @@ public interface ClassMapper extends BaseMapperX<ClassDO> {
                 .orderByAsc(ClassDO::getSort));
     }
 
+    /**
+     * 根据专业ID获取班级列表
+     * @param majorId 专业ID
+     * @return 班级列表
+     */
+    default List<ClassDO> selectListByMajorId(Long majorId) {
+        return selectList(new LambdaQueryWrapperX<ClassDO>()
+                .eq(ClassDO::getMajorId, majorId)
+                .orderByAsc(ClassDO::getSort));
+    }
+
 }

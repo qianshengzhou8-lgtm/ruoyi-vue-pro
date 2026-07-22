@@ -20,6 +20,13 @@ public interface MajorService {
 
     List<MajorDO> getMajorList(MajorListReqVO reqVO);
 
+    /**
+     * 根据学院ID获取专业列表
+     * @param collegeId 学院ID
+     * @return 专业列表
+     */
+    List<MajorDO> getMajorListByCollegeId(Long collegeId);
+
     ImportRespVO importMajorList(List<MajorImportExcelVO> list);
 
 }

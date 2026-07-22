@@ -23,6 +23,7 @@ public interface CourseMapper extends BaseMapperX<CourseDO> {
         return selectList(wrapper.orderByAsc(CourseDO::getSort));
     }
 
+    
     default Long selectCountByType(Integer type) {
         return selectCount(CourseDO::getType, type);
     }

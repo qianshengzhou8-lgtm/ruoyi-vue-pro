@@ -2,24 +2,37 @@ package cn.iocoder.yudao.module.school.controller.admin;
 
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
+import cn.iocoder.yudao.framework.excel.core.util.ExcelUtils;
+import cn.iocoder.yudao.module.school.controller.admin.vo.ImportRespVO;
+import cn.iocoder.yudao.module.school.controller.admin.vo.class_.ClassImportExcelVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.class_.ClassListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.class_.ClassRespVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.class_.ClassSaveReqVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.ClassDO;
+import cn.iocoder.yudao.module.school.dal.dataobject.MajorDO;
 import cn.iocoder.yudao.module.school.service.ClassService;
+import cn.iocoder.yudao.module.school.service.MajorService;
+import cn.iocoder.yudao.module.school.util.SchoolDataPermissionUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import javax.annotation.security.PermitAll;
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
+import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
 import static cn.iocoder.yudao.module.school.enums.ErrorCodeConstants.CLASS_NOT_EXISTS;
+import static cn.iocoder.yudao.module.school.enums.ErrorCodeConstants.DATA_PERMISSION_DENIED;
 
 @Tag(name = "管理后台 - 班级管理")
 @RestController
@@ -29,6 +42,10 @@ public class ClassController {
 
     @Resource
     private ClassService classService;
+    @Resource
+    private MajorService majorService;
+    @Resource
+    private SchoolDataPermissionUtil dataPermissionUtil;
 
     @PostMapping("/create")
     @Operation(summary = "创建班级")
@@ -59,6 +76,9 @@ public class ClassController {
     public CommonResult<ClassRespVO> getClass(@RequestParam("id") Long id) {
         ClassDO c = classService.getClass(id);
         if (c == null) { throw exception(CLASS_NOT_EXISTS); }
+        Integer role = dataPermissionUtil.getCurrentStaffRole();
+        if (role == 0) throw exception(DATA_PERMISSION_DENIED);
+        if (!dataPermissionUtil.hasAccessToClass(c.getId())) throw exception(DATA_PERMISSION_DENIED);
         return success(BeanUtils.toBean(c, ClassRespVO.class));
     }
 
@@ -66,8 +86,60 @@ public class ClassController {
     @Operation(summary = "获得班级列表")
     @PreAuthorize("@ss.hasPermission('school:class:query')")
     public CommonResult<List<ClassRespVO>> getClassList(@Valid ClassListReqVO reqVO) {
+        Integer role = dataPermissionUtil.getCurrentStaffRole();
+        if (role == 0) return success(Collections.emptyList());
         List<ClassDO> list = classService.getClassList(reqVO);
+        if (role == 1) {
+            // 班主任 → 只看本班
+            Long classId = dataPermissionUtil.getCurrentStaffClassId();
+            if (classId != null) {
+                list.removeIf(c -> !c.getId().equals(classId));
+            } else {
+                list.clear(); // 未分配班级则无数据
+            }
+        } else if (role == 2) {
+            Long collegeId = dataPermissionUtil.getCurrentStaffCollegeId();
+            // 预加载本学院下属所有专业ID，批量过滤班级，避免 N+1 查询
+            List<Long> majorIds = majorService.getMajorListByCollegeId(collegeId)
+                    .stream().map(MajorDO::getId).collect(Collectors.toList());
+            list.removeIf(c -> !majorIds.contains(c.getMajorId()));
+        }
+        // role==3 校长看全部
         return success(BeanUtils.toBean(list, ClassRespVO.class));
+    }
+
+    @GetMapping("/list-by-major")
+    @Operation(summary = "根据专业ID获取班级列表", description = "用于级联选择班级")
+    @PreAuthorize("@ss.hasPermission('school:class:query')")
+    public CommonResult<List<ClassRespVO>> getClassListByMajorId(@RequestParam("majorId") Long majorId) {
+        List<ClassDO> list = classService.getClassListByMajorId(majorId);
+        return success(BeanUtils.toBean(list, ClassRespVO.class));
+    }
+
+    // ========== 导入导出 ==========
+
+    @GetMapping("/export-excel")
+    @Operation(summary = "导出班级 Excel")
+    @PreAuthorize("@ss.hasPermission('school:class:export')")
+    public void exportClassList(@Valid ClassListReqVO reqVO, HttpServletResponse response) throws IOException {
+        List<ClassDO> list = classService.getClassList(reqVO);
+        ExcelUtils.write(response, "班级数据.xls", "数据", ClassRespVO.class, BeanUtils.toBean(list, ClassRespVO.class));
+    }
+
+    @GetMapping("/get-import-template")
+    @Operation(summary = "获得班级导入模板")
+    @PermitAll
+    public void importTemplate(HttpServletResponse response) throws IOException {
+        ExcelUtils.write(response, "班级导入模板.xls", "数据", ClassImportExcelVO.class,
+                Collections.singletonList(ClassImportExcelVO.builder().build()));
+    }
+
+    @PostMapping("/import")
+    @Operation(summary = "导入班级")
+    @PreAuthorize("@ss.hasPermission('school:class:import')")
+    public CommonResult<ImportRespVO> importClassList(@RequestParam("file") MultipartFile file) throws IOException {
+        List<ClassImportExcelVO> list = ExcelUtils.read(file, ClassImportExcelVO.class);
+        return success(classService.importClassList(list));
     }
 
 }

@@ -2,6 +2,8 @@ package cn.iocoder.yudao.module.school.service;
 
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.framework.tenant.core.context.TenantContextHolder;
+import cn.iocoder.yudao.module.school.controller.admin.vo.ImportRespVO;
+import cn.iocoder.yudao.module.school.controller.admin.vo.staff.StaffImportExcelVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.staff.StaffListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.staff.StaffSaveReqVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.StaffDO;
@@ -42,8 +44,19 @@ public class StaffServiceImpl implements StaffService {
     @Resource
     private PasswordEncoder passwordEncoder;
 
-    /** 教职工默认角色：超级管理员(1) */
-    private static final Long STAFF_DEFAULT_ROLE_ID = 1L;
+    /**
+     * 教职工角色映射：SchoolRoleEnum → system_role ID
+     * 0(教师) → 5001, 1(班主任) → 5002, 2(学院院长) → 5003, 3(校长) → 5004
+     */
+    private static Long mapSchoolRoleToSystemRole(Integer schoolRole) {
+        if (schoolRole == null) return 5001L; // 默认为教师角色
+        switch (schoolRole) {
+            case 1: return 5002L; // 班主任
+            case 2: return 5003L; // 学院院长
+            case 3: return 5004L; // 校长
+            default: return 5001L; // 教师
+        }
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -67,8 +80,9 @@ public class StaffServiceImpl implements StaffService {
         adminUser.setStatus(createReqVO.getStatus() != null ? createReqVO.getStatus() : 0);
         adminUser.setTenantId(TenantContextHolder.getRequiredTenantId());
         adminUserMapper.insert(adminUser);
-        // 分配角色，使其能访问后台菜单
-        permissionService.assignUserRole(adminUser.getId(), Collections.singleton(STAFF_DEFAULT_ROLE_ID));
+        // 根据教职工role字段分配对应的系统角色，避免统一赋超管的安全风险
+        Long systemRoleId = mapSchoolRoleToSystemRole(staff.getRole());
+        permissionService.assignUserRole(adminUser.getId(), Collections.singleton(systemRoleId));
         return staff.getId();
     }
 
@@ -98,6 +112,13 @@ public class StaffServiceImpl implements StaffService {
                 adminUser.setPassword(passwordEncoder.encode(updateReqVO.getPassword()));
             }
             adminUserMapper.updateById(adminUser);
+            // 同步更新角色：如果教职工角色变更，则更新对应的系统角色
+            Integer oldRole = old.getRole();
+            Integer newRole = updateObj.getRole();
+            if (oldRole != null && newRole != null && !oldRole.equals(newRole)) {
+                Long newSystemRoleId = mapSchoolRoleToSystemRole(newRole);
+                permissionService.assignUserRole(adminUser.getId(), Collections.singleton(newSystemRoleId));
+            }
         } else {
             log.warn("[updateStaff] 未找到对应的 system_users 记录, username={}", old.getUsername());
         }
@@ -131,6 +152,22 @@ public class StaffServiceImpl implements StaffService {
     @Override
     public StaffDO getStaffByUsername(String username) {
         return staffMapper.selectByUsername(username);
+    }
+
+    @Override
+    public ImportRespVO importStaffList(List<StaffImportExcelVO> list) {
+        ImportRespVO result = new ImportRespVO();
+        for (StaffImportExcelVO vo : list) {
+            try {
+                StaffSaveReqVO saveVO = BeanUtils.toBean(vo, StaffSaveReqVO.class);
+                createStaff(saveVO);
+                result.setCreateCount(result.getCreateCount() + 1);
+            } catch (Exception e) {
+                result.setFailureCount(result.getFailureCount() + 1);
+                result.getFailureReasons().add(vo.getName() + ": " + e.getMessage());
+            }
+        }
+        return result;
     }
 
     private void validateStaffExists(Long id) {

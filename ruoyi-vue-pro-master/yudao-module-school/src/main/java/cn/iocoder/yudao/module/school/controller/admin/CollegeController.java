@@ -10,6 +10,7 @@ import cn.iocoder.yudao.module.school.controller.admin.vo.college.CollegeRespVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.college.CollegeSaveReqVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.CollegeDO;
 import cn.iocoder.yudao.module.school.service.CollegeService;
+import cn.iocoder.yudao.module.school.util.SchoolDataPermissionUtil;
 import cn.iocoder.yudao.framework.common.enums.CommonStatusEnum;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,6 +30,7 @@ import java.util.List;
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
 import static cn.iocoder.yudao.module.school.enums.ErrorCodeConstants.COLLEGE_NOT_EXISTS;
+import static cn.iocoder.yudao.module.school.enums.ErrorCodeConstants.DATA_PERMISSION_DENIED;
 
 @Tag(name = "管理后台 - 学院管理")
 @RestController
@@ -38,6 +40,8 @@ public class CollegeController {
 
     @Resource
     private CollegeService collegeService;
+    @Resource
+    private SchoolDataPermissionUtil dataPermissionUtil;
 
     @PostMapping("/create")
     @Operation(summary = "创建学院")
@@ -68,6 +72,12 @@ public class CollegeController {
     public CommonResult<CollegeRespVO> getCollege(@RequestParam("id") Long id) {
         CollegeDO college = collegeService.getCollege(id);
         if (college == null) { throw exception(COLLEGE_NOT_EXISTS); }
+        // 数据权限检查：教师无法查看详情
+        Integer role = dataPermissionUtil.getCurrentStaffRole();
+        if (role == 0) throw exception(DATA_PERMISSION_DENIED);
+        if (role == 2 && !dataPermissionUtil.hasAccessToCollege(college.getId())) {
+            throw exception(DATA_PERMISSION_DENIED);
+        }
         return success(BeanUtils.toBean(college, CollegeRespVO.class));
     }
 
@@ -75,7 +85,16 @@ public class CollegeController {
     @Operation(summary = "获得学院列表")
     @PreAuthorize("@ss.hasPermission('school:college:query')")
     public CommonResult<List<CollegeRespVO>> getCollegeList(@Valid CollegeListReqVO reqVO) {
+        // 根据登录教职工角色做数据权限过滤
+        Integer role = dataPermissionUtil.getCurrentStaffRole();
+        if (role == 0 || role == 1) return success(Collections.emptyList()); // 教师/班主任无学院权限
         List<CollegeDO> list = collegeService.getCollegeList(reqVO);
+        if (role == 2) {
+            // 院长 → 只看本院
+            Long collegeId = dataPermissionUtil.getCurrentStaffCollegeId();
+            list.removeIf(c -> !c.getId().equals(collegeId));
+        }
+        // role==3 校长看全部
         return success(BeanUtils.toBean(list, CollegeRespVO.class));
     }
 
