@@ -10,6 +10,7 @@ import cn.iocoder.yudao.module.school.dal.dataobject.StudentDO;
 import cn.iocoder.yudao.module.school.dal.mysql.ClassMapper;
 import cn.iocoder.yudao.module.school.dal.mysql.MajorMapper;
 import cn.iocoder.yudao.module.school.dal.mysql.StudentMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -22,6 +23,7 @@ import static cn.iocoder.yudao.module.school.enums.ErrorCodeConstants.*;
 
 @Service
 @Validated
+@Slf4j
 public class ClassServiceImpl implements ClassService {
 
     @Resource
@@ -77,6 +79,11 @@ public class ClassServiceImpl implements ClassService {
     }
 
     @Override
+    public List<ClassDO> getClassListByCollegeId(ClassListReqVO reqVO, Long collegeId) {
+        return classMapper.selectListByCollegeId(reqVO, collegeId);
+    }
+
+    @Override
     public ImportRespVO importClassList(List<ClassImportExcelVO> list) {
         ImportRespVO result = new ImportRespVO();
         for (ClassImportExcelVO vo : list) {
@@ -85,6 +92,7 @@ public class ClassServiceImpl implements ClassService {
                 createClass(saveVO);
                 result.setCreateCount(result.getCreateCount() + 1);
             } catch (Exception e) {
+                log.warn("[importClassList] 导入班级失败: name={}", vo.getName(), e);
                 result.setFailureCount(result.getFailureCount() + 1);
                 result.getFailureReasons().add(vo.getName() + ": " + e.getMessage());
             }

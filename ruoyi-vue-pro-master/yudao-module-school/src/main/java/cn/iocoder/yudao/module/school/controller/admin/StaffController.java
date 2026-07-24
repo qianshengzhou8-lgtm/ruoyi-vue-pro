@@ -84,12 +84,15 @@ public class StaffController {
     @PreAuthorize("@ss.hasPermission('school:staff:query')")
     public CommonResult<List<StaffRespVO>> getStaffList(@Valid StaffListReqVO reqVO) {
         Integer role = dataPermissionUtil.getCurrentStaffRole();
-        if (role == 0 || role == 1) return success(Collections.emptyList()); // 教师/班主任无教职工权限
-        List<StaffDO> list = staffService.getStaffList(reqVO);
+        if (role == 0 || role == 1) return success(Collections.emptyList());
+        List<StaffDO> list;
         if (role == 2) {
-            // 院长 → 只看本院教职工
+            // 院长 → 只看本院教职工（下推到数据库过滤）
             Long collegeId = dataPermissionUtil.getCurrentStaffCollegeId();
-            list.removeIf(s -> !s.getCollegeId().equals(collegeId));
+            list = staffService.getStaffListByCollegeId(reqVO, collegeId);
+        } else {
+            // 校长 → 全校数据
+            list = staffService.getStaffList(reqVO);
         }
         return success(BeanUtils.toBean(list, StaffRespVO.class));
     }
@@ -99,7 +102,7 @@ public class StaffController {
     @GetMapping("/export-excel")
     @Operation(summary = "导出教职工 Excel")
     @PreAuthorize("@ss.hasPermission('school:staff:export')")
-    public void exportStaffList(@Valid StaffListReqVO reqVO, HttpServletResponse response) throws IOException {
+    public void exportStaffList(StaffListReqVO reqVO, HttpServletResponse response) throws IOException {
         List<StaffDO> list = staffService.getStaffList(reqVO);
         ExcelUtils.write(response, "教职工数据.xls", "数据", StaffRespVO.class, BeanUtils.toBean(list, StaffRespVO.class));
     }

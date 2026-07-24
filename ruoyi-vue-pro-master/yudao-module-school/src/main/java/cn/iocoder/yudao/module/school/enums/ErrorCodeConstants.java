@@ -26,6 +26,7 @@ public interface ErrorCodeConstants {
     ErrorCode STAFF_USERNAME_DUPLICATE = new ErrorCode(1_008_004_001, "教职工账号已存在");
     ErrorCode STAFF_PASSWORD_BLANK = new ErrorCode(1_008_004_002, "教职工密码不能为空");
     ErrorCode STAFF_BAD_CREDENTIALS = new ErrorCode(1_008_004_003, "账号或密码错误");
+    ErrorCode STAFF_CLASS_REQUIRED = new ErrorCode(1_008_004_004, "班主任必须指定负责班级");
 
     // ========== 学生模块 1-008-005-000 ==========
     ErrorCode STUDENT_NOT_EXISTS = new ErrorCode(1_008_005_000, "学生不存在");

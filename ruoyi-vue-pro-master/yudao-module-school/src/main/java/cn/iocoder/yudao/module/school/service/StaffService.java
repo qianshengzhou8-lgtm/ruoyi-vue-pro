@@ -20,6 +20,11 @@ public interface StaffService {
 
     List<StaffDO> getStaffList(StaffListReqVO reqVO);
 
+    /**
+     * 根据学院ID获取教职工列表（数据权限过滤，下推到数据库）
+     */
+    List<StaffDO> getStaffListByCollegeId(StaffListReqVO reqVO, Long collegeId);
+
     StaffDO getStaffByUsername(String username);
 
     /**

@@ -22,11 +22,11 @@ public class PageResultVO<T> {
     @Schema(description = "数据列表", requiredMode = Schema.RequiredMode.REQUIRED)
     private List<T> list;
 
-    public static <T> PageResultVO<T> of(PageResult<T> pageResult) {
+    public static <T> PageResultVO<T> of(PageResult<T> pageResult, int pageNo, int pageSize) {
         PageResultVO<T> resultVO = new PageResultVO<>();
         resultVO.setTotal(pageResult.getTotal());
-        resultVO.setPageNo(1); // Default to page 1 since framework PageResult doesn't store page info
-        resultVO.setPageSize(10); // Default page size
+        resultVO.setPageNo(pageNo);
+        resultVO.setPageSize(pageSize);
         resultVO.setList(pageResult.getList());
         return resultVO;
     }

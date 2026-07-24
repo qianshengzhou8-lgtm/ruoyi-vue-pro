@@ -68,31 +68,36 @@ public class StudentController {
     @Operation(summary = "获得学生信息")
     @PreAuthorize("@ss.hasPermission('school:student:query')")
     public CommonResult<StudentRespVO> getStudent(@RequestParam("id") Long id) {
-        StudentDO s = studentService.getStudent(id);
-        if (s == null) { throw exception(STUDENT_NOT_EXISTS); }
-        // 数据权限检查：教师无法查看学生详情
+        // 先做数据权限检查，避免通过错误信息差异枚举用户是否存在
         Integer role = dataPermissionUtil.getCurrentStaffRole();
         if (role == 0) {
             throw exception(DATA_PERMISSION_DENIED);
         }
-        // 班主任只能查看本班学生
         if (role == 1) {
             Long currentClassId = dataPermissionUtil.getCurrentStaffClassId();
-            if (currentClassId == null || !currentClassId.equals(s.getClassId())) {
+            if (currentClassId == null) {
                 throw exception(DATA_PERMISSION_DENIED);
             }
+            StudentDO s = studentService.getStudent(id);
+            if (s == null || !currentClassId.equals(s.getClassId())) {
+                throw exception(DATA_PERMISSION_DENIED);
+            }
+            return success(BeanUtils.toBean(s, StudentRespVO.class));
         }
-        // 学院院长只能查看本院学生
         if (role == 2) {
             Long currentCollegeId = dataPermissionUtil.getCurrentStaffCollegeId();
             if (currentCollegeId == null) {
                 throw exception(DATA_PERMISSION_DENIED);
             }
-            // 通过学生班级ID和学院ID做权限验证
-            if (!studentService.hasStudentInCollege(s.getId(), currentCollegeId)) {
+            StudentDO s = studentService.getStudent(id);
+            if (s == null || !studentService.hasStudentInCollege(s.getId(), currentCollegeId)) {
                 throw exception(DATA_PERMISSION_DENIED);
             }
+            return success(BeanUtils.toBean(s, StudentRespVO.class));
         }
+        // role == 3: 校长可查看所有学生
+        StudentDO s = studentService.getStudent(id);
+        if (s == null) { throw exception(STUDENT_NOT_EXISTS); }
         return success(BeanUtils.toBean(s, StudentRespVO.class));
     }
 
@@ -132,7 +137,7 @@ public class StudentController {
     @GetMapping("/export-excel")
     @Operation(summary = "导出学生 Excel")
     @PreAuthorize("@ss.hasPermission('school:student:export')")
-    public void exportStudentList(@Valid StudentListReqVO reqVO, HttpServletResponse response) throws IOException {
+    public void exportStudentList(StudentListReqVO reqVO, HttpServletResponse response) throws IOException {
         List<StudentDO> list = studentService.getStudentList(reqVO);
         ExcelUtils.write(response, "学生数据.xls", "数据", StudentRespVO.class, BeanUtils.toBean(list, StudentRespVO.class));
     }

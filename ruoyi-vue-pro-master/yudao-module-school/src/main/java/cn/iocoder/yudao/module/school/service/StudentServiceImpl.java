@@ -208,6 +208,7 @@ public class StudentServiceImpl implements StudentService {
                 createStudent(saveVO);
                 result.setCreateCount(result.getCreateCount() + 1);
             } catch (Exception e) {
+                log.warn("[importStudentList] 导入学生失败: name={}", vo.getName(), e);
                 result.setFailureCount(result.getFailureCount() + 1);
                 result.getFailureReasons().add(vo.getName() + ": " + e.getMessage());
             }
@@ -221,19 +222,30 @@ public class StudentServiceImpl implements StudentService {
         }
     }
 
-    private void validateUsernameUnique(String username, Long id) {
+    private void validateUsernameUnique(String username, Long excludeStudentId) {
         // 检查学生表
         StudentDO existingStudent = studentMapper.selectByUsername(username);
-        if (existingStudent != null && !existingStudent.getId().equals(id)) {
+        if (existingStudent != null && !existingStudent.getId().equals(excludeStudentId)) {
             throw exception(STUDENT_USERNAME_DUPLICATE);
         }
         // 检查教职工表
         if (staffMapper.selectByUsername(username) != null) {
             throw exception(STUDENT_USERNAME_DUPLICATE);
         }
-        // 检查会员表（通过mobile检查，因为student的username通常作为mobile）
+        // 检查会员表（通过 mobile，student 的 username 同时作为 member 的 mobile）
         MemberUserDO existingMember = memberUserMapper.selectByMobile(username);
-        if (existingMember != null && !existingMember.getId().equals(id)) {
+        if (existingMember != null) {
+            // 更新时：排除当前学生对应的 member 记录
+            if (excludeStudentId != null) {
+                StudentDO currentStudent = studentMapper.selectById(excludeStudentId);
+                if (currentStudent != null) {
+                    String currentMobile = currentStudent.getMobile() != null ? currentStudent.getMobile() : currentStudent.getUsername();
+                    MemberUserDO currentMember = memberUserMapper.selectByMobile(currentMobile);
+                    if (currentMember != null && currentMember.getId().equals(existingMember.getId())) {
+                        return; // 是当前学生自己的 member 记录，允许
+                    }
+                }
+            }
             throw exception(STUDENT_USERNAME_DUPLICATE);
         }
     }

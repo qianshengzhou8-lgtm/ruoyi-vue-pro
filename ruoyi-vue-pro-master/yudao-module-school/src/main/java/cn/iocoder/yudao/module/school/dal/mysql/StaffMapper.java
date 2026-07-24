@@ -19,6 +19,14 @@ public interface StaffMapper extends BaseMapperX<StaffDO> {
                 .orderByDesc(StaffDO::getCreateTime));
     }
 
+    default List<StaffDO> selectListByCollegeId(StaffListReqVO reqVO, Long collegeId) {
+        return selectList(new LambdaQueryWrapperX<StaffDO>()
+                .likeIfPresent(StaffDO::getName, reqVO.getName())
+                .eq(StaffDO::getCollegeId, collegeId)
+                .eqIfPresent(StaffDO::getStatus, reqVO.getStatus())
+                .orderByDesc(StaffDO::getCreateTime));
+    }
+
     default StaffDO selectByUsername(String username) {
         return selectOne(StaffDO::getUsername, username);
     }

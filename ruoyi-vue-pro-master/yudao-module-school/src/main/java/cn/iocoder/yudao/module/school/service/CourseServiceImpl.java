@@ -4,7 +4,6 @@ import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.framework.mybatis.core.query.LambdaQueryWrapperX;
-import cn.iocoder.yudao.framework.tenant.core.context.TenantContextHolder;
 import cn.iocoder.yudao.module.school.controller.admin.vo.course.*;
 import cn.iocoder.yudao.module.school.dal.dataobject.CourseDO;
 import cn.iocoder.yudao.module.school.dal.dataobject.CourseSelectionDO;
@@ -16,6 +15,7 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Objects;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.module.school.enums.ErrorCodeConstants.*;
@@ -91,29 +91,24 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String selectCourse(Long courseId, Long studentId) {
-        CourseDO course = courseMapper.selectById(courseId);
-        if (course == null) throw exception(COURSE_NOT_EXISTS);
-        // 先检查是否已选（快速失败）
+        // 先检查是否已选（快速失败，无需加锁）
         CourseSelectionDO existing = selectionMapper.selectByCourseAndStudent(courseId, studentId);
         if (existing != null) throw exception(COURSE_ALREADY_SELECTED);
-        // 选修课使用原子性插入防止超卖
-        if (course.getType() != null && course.getType() == 1 && course.getCapacity() != null) {
-            Long affectedRows = selectionMapper.insertWithCapacityCheck(
-                courseId,
-                studentId,
-                course.getCapacity(),
-                TenantContextHolder.getRequiredTenantId()
-            );
-            if (affectedRows == null || affectedRows == 0) {
+        // 行级锁查询课程，防止选修课超卖
+        CourseDO course = courseMapper.selectByIdForUpdate(courseId);
+        if (course == null) throw exception(COURSE_NOT_EXISTS);
+        // 选修课：检查容量
+        if (Objects.equals(course.getType(), 1) && course.getCapacity() != null) {
+            long currentCount = selectionMapper.selectCountByCourseId(courseId);
+            if (currentCount >= course.getCapacity()) {
                 throw exception(COURSE_CAPACITY_FULL);
             }
-        } else {
-            // 必修课或无容量限制的课程直接插入
-            CourseSelectionDO selection = new CourseSelectionDO();
-            selection.setCourseId(courseId);
-            selection.setStudentId(studentId);
-            selectionMapper.insert(selection);
         }
+        // 使用 MyBatis-Plus 正常插入，自动填充 tenant_id/creator/create_time
+        CourseSelectionDO selection = new CourseSelectionDO();
+        selection.setCourseId(courseId);
+        selection.setStudentId(studentId);
+        selectionMapper.insert(selection);
         return "选课成功";
     }
 
@@ -127,11 +122,9 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public CourseStatisticsRespVO getStatistics() {
         CourseStatisticsRespVO vo = new CourseStatisticsRespVO();
-        List<CourseDO> allCourses = courseMapper.selectList(new CourseListReqVO());
-        vo.setTotalCourses((long) allCourses.size());
-        vo.setRequiredCount(allCourses.stream().filter(c -> c.getType() != null && c.getType() == 0).count());
-        vo.setElectiveCount(allCourses.stream().filter(c -> c.getType() != null && c.getType() == 1).count());
-        // 统计选课数据（单条 COUNT 查询，避免 N+1 问题）
+        vo.setTotalCourses(courseMapper.selectCount(null));
+        vo.setRequiredCount(courseMapper.selectCountByType(0));
+        vo.setElectiveCount(courseMapper.selectCountByType(1));
         vo.setTotalSelections(selectionMapper.selectAllCount());
         vo.setTotalStudents(selectionMapper.selectDistinctStudentCount());
         return vo;

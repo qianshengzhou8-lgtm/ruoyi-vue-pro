@@ -9,9 +9,7 @@ import cn.iocoder.yudao.module.school.controller.admin.vo.class_.ClassListReqVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.class_.ClassRespVO;
 import cn.iocoder.yudao.module.school.controller.admin.vo.class_.ClassSaveReqVO;
 import cn.iocoder.yudao.module.school.dal.dataobject.ClassDO;
-import cn.iocoder.yudao.module.school.dal.dataobject.MajorDO;
 import cn.iocoder.yudao.module.school.service.ClassService;
-import cn.iocoder.yudao.module.school.service.MajorService;
 import cn.iocoder.yudao.module.school.util.SchoolDataPermissionUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,7 +25,6 @@ import javax.validation.Valid;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
@@ -42,8 +39,6 @@ public class ClassController {
 
     @Resource
     private ClassService classService;
-    @Resource
-    private MajorService majorService;
     @Resource
     private SchoolDataPermissionUtil dataPermissionUtil;
 
@@ -88,23 +83,25 @@ public class ClassController {
     public CommonResult<List<ClassRespVO>> getClassList(@Valid ClassListReqVO reqVO) {
         Integer role = dataPermissionUtil.getCurrentStaffRole();
         if (role == 0) return success(Collections.emptyList());
-        List<ClassDO> list = classService.getClassList(reqVO);
+        List<ClassDO> list;
         if (role == 1) {
-            // 班主任 → 只看本班
+            // 班主任 → 只看本班（下推到数据库过滤）
             Long classId = dataPermissionUtil.getCurrentStaffClassId();
             if (classId != null) {
-                list.removeIf(c -> !c.getId().equals(classId));
+                reqVO.setMajorId(null); // 清除可能存在的 majorId 筛选，以 class 级别为准
+                list = java.util.Collections.singletonList(classService.getClass(classId));
+                list.removeIf(c -> c == null);
             } else {
-                list.clear(); // 未分配班级则无数据
+                list = Collections.emptyList();
             }
         } else if (role == 2) {
+            // 院长 → 本学院班级（下推到数据库过滤）
             Long collegeId = dataPermissionUtil.getCurrentStaffCollegeId();
-            // 预加载本学院下属所有专业ID，批量过滤班级，避免 N+1 查询
-            List<Long> majorIds = majorService.getMajorListByCollegeId(collegeId)
-                    .stream().map(MajorDO::getId).collect(Collectors.toList());
-            list.removeIf(c -> !majorIds.contains(c.getMajorId()));
+            list = classService.getClassListByCollegeId(reqVO, collegeId);
+        } else {
+            // 校长 → 全校数据
+            list = classService.getClassList(reqVO);
         }
-        // role==3 校长看全部
         return success(BeanUtils.toBean(list, ClassRespVO.class));
     }
 
@@ -121,7 +118,7 @@ public class ClassController {
     @GetMapping("/export-excel")
     @Operation(summary = "导出班级 Excel")
     @PreAuthorize("@ss.hasPermission('school:class:export')")
-    public void exportClassList(@Valid ClassListReqVO reqVO, HttpServletResponse response) throws IOException {
+    public void exportClassList(ClassListReqVO reqVO, HttpServletResponse response) throws IOException {
         List<ClassDO> list = classService.getClassList(reqVO);
         ExcelUtils.write(response, "班级数据.xls", "数据", ClassRespVO.class, BeanUtils.toBean(list, ClassRespVO.class));
     }

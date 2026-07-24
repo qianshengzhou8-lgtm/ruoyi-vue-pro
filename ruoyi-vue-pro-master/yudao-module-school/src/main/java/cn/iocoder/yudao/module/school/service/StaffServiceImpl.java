@@ -22,6 +22,7 @@ import org.springframework.validation.annotation.Validated;
 import javax.annotation.Resource;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.module.school.enums.ErrorCodeConstants.*;
@@ -68,6 +69,10 @@ public class StaffServiceImpl implements StaffService {
         if (collegeMapper.selectById(createReqVO.getCollegeId()) == null) {
             throw exception(COLLEGE_NOT_EXISTS);
         }
+        // 班主任必须有负责班级
+        if (createReqVO.getRole() != null && createReqVO.getRole() == 1 && createReqVO.getClassId() == null) {
+            throw exception(STAFF_CLASS_REQUIRED);
+        }
         StaffDO staff = BeanUtils.toBean(createReqVO, StaffDO.class);
         String encodedPwd = passwordEncoder.encode(createReqVO.getPassword());
         staff.setPassword(encodedPwd);
@@ -113,10 +118,8 @@ public class StaffServiceImpl implements StaffService {
             }
             adminUserMapper.updateById(adminUser);
             // 同步更新角色：如果教职工角色变更，则更新对应的系统角色
-            Integer oldRole = old.getRole();
-            Integer newRole = updateObj.getRole();
-            if (oldRole != null && newRole != null && !oldRole.equals(newRole)) {
-                Long newSystemRoleId = mapSchoolRoleToSystemRole(newRole);
+            if (!Objects.equals(old.getRole(), updateObj.getRole())) {
+                Long newSystemRoleId = mapSchoolRoleToSystemRole(updateObj.getRole());
                 permissionService.assignUserRole(adminUser.getId(), Collections.singleton(newSystemRoleId));
             }
         } else {
@@ -150,6 +153,11 @@ public class StaffServiceImpl implements StaffService {
     }
 
     @Override
+    public List<StaffDO> getStaffListByCollegeId(StaffListReqVO reqVO, Long collegeId) {
+        return staffMapper.selectListByCollegeId(reqVO, collegeId);
+    }
+
+    @Override
     public StaffDO getStaffByUsername(String username) {
         return staffMapper.selectByUsername(username);
     }
@@ -163,6 +171,7 @@ public class StaffServiceImpl implements StaffService {
                 createStaff(saveVO);
                 result.setCreateCount(result.getCreateCount() + 1);
             } catch (Exception e) {
+                log.warn("[importStaffList] 导入教职工失败: name={}", vo.getName(), e);
                 result.setFailureCount(result.getFailureCount() + 1);
                 result.getFailureReasons().add(vo.getName() + ": " + e.getMessage());
             }

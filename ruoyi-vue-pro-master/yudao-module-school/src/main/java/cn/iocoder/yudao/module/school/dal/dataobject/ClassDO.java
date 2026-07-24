@@ -30,8 +30,3 @@ public class ClassDO extends TenantBaseDO {
     private Integer status;
 
 }
-
-
-
-
-

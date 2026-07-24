@@ -21,13 +21,23 @@ public interface ClassMapper extends BaseMapperX<ClassDO> {
 
     /**
      * 根据专业ID获取班级列表
-     * @param majorId 专业ID
-     * @return 班级列表
      */
     default List<ClassDO> selectListByMajorId(Long majorId) {
         return selectList(new LambdaQueryWrapperX<ClassDO>()
                 .eq(ClassDO::getMajorId, majorId)
                 .orderByAsc(ClassDO::getSort));
+    }
+
+    /**
+     * 根据学院ID获取班级列表（通过班级→专业→学院链路过滤，下推到数据库）
+     */
+    default List<ClassDO> selectListByCollegeId(ClassListReqVO reqVO, Long collegeId) {
+        LambdaQueryWrapperX<ClassDO> wrapper = new LambdaQueryWrapperX<ClassDO>()
+                .likeIfPresent(ClassDO::getName, reqVO.getName())
+                .eqIfPresent(ClassDO::getStatus, reqVO.getStatus());
+        wrapper.apply("major_id IN (SELECT m.id FROM school_major m WHERE m.college_id = {0})", collegeId);
+        wrapper.orderByAsc(ClassDO::getSort);
+        return selectList(wrapper);
     }
 
 }
